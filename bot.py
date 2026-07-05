@@ -17,7 +17,7 @@ def check_groq_key():
         return False
     try:
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": "test"}],
             max_tokens=5
         )
@@ -30,7 +30,7 @@ def check_groq_key():
 def ask_groq(prompt):
     try:
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {
                     "role": "system",
