@@ -1,49 +1,53 @@
 import logging
 import os
-import requests
+from groq import Groq
 from telegram import ReplyKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 logging.basicConfig(level=logging.INFO)
 
-def check_gemini_key():
-    if not GEMINI_API_KEY:
-        logging.error("GEMINI_API_KEY не задан!")
+client = Groq(api_key=GROQ_API_KEY)
+
+def check_groq_key():
+    if not GROQ_API_KEY:
+        logging.error("GROQ_API_KEY не задан!")
         return False
     try:
-        response = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}",
-            json={"contents": [{"parts": [{"text": "test"}]}]},
-            timeout=10
+        response = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[{"role": "user", "content": "test"}],
+            max_tokens=5
         )
-        data = response.json()
-        if "error" in data:
-            logging.error(f"Gemini ключ недействителен: {data['error']['message']}")
-            return False
-        logging.info("Gemini API ключ рабочий.")
+        logging.info("Groq API ключ рабочий.")
         return True
     except Exception as e:
-        logging.error(f"Ошибка проверки Gemini ключа: {e}")
+        logging.error(f"Groq ключ недействителен: {e}")
         return False
 
-# 🧠 Функция обращения к Gemini API
-def ask_gemini(prompt):
+def ask_groq(prompt):
     try:
-        response = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}",
-            json={"contents":[{"parts":[{"text": prompt}]}]}
+        response = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Ты исламский помощник. Отвечай на вопросы об исламе, Коране, хадисах и исламской практике на русском языке. Будь точным и уважительным."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=1024
         )
-        data = response.json()
-        logging.info(f"Gemini response: {data}")
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+        return response.choices[0].message.content
     except Exception as e:
-        logging.error(f"Gemini error: {e}")
-        return "Ошибка при обращении к Gemini."
+        logging.error(f"Groq error: {e}")
+        return "Ошибка при обращении к Groq."
 
-# 📌 Главное меню
 main_menu = ReplyKeyboardMarkup(
     [
         ["Исламские темы", "Аят"],
@@ -53,15 +57,13 @@ main_menu = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-# 🕌 Команда /start
 def start(update, context):
     update.message.reply_text(
         "Ассаляму алейкум!\n\n"
-        "Я бот с Gemini API. Выбери действие:",
+        "Я исламский бот на базе Groq AI. Выбери действие:",
         reply_markup=main_menu
     )
 
-# 🔘 Обработка кнопок
 def buttons(update, context):
     text = update.message.text.lower()
 
@@ -92,11 +94,11 @@ def buttons(update, context):
         )
         return
 
-    answer = ask_gemini(text)
+    answer = ask_groq(text)
     update.message.reply_text(answer)
 
 def main():
-    check_gemini_key()
+    check_groq_key()
     updater = Updater(TELEGRAM_TOKEN, use_context=True)
     dp = updater.dispatcher
 
