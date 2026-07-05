@@ -1,6 +1,7 @@
 import os
+import sys
 import logging
-import requests
+import httpx
 from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from designer_bot import handle_designer_message
@@ -8,6 +9,12 @@ from designer_bot import handle_designer_message
 # ========= НАСТРОЙКИ =========
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# Fail fast if required env vars are missing
+if not TELEGRAM_TOKEN:
+    sys.exit("FATAL: TELEGRAM_TOKEN environment variable is not set.")
+if not GROQ_API_KEY:
+    sys.exit("FATAL: GROQ_API_KEY environment variable is not set.")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.1-8b-instant"
 
@@ -171,7 +178,7 @@ questions_keyboard = ReplyKeyboardMarkup(
 )
 
 # ========= ask_groq() =========
-def ask_groq(prompt: str) -> str:
+async def ask_groq(prompt: str) -> str:
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
@@ -194,10 +201,11 @@ def ask_groq(prompt: str) -> str:
     }
 
     try:
-        r = requests.post(GROQ_URL, json=data, headers=headers, timeout=30)
-        r.raise_for_status()
-        resp = r.json()
-        return resp["choices"][0]["message"]["content"]
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.post(GROQ_URL, json=data, headers=headers)
+            r.raise_for_status()
+            resp = r.json()
+            return resp["choices"][0]["message"]["content"]
 
     except Exception as e:
         logger.error(f"GROQ error: {e}")
@@ -244,12 +252,12 @@ await handle_designer_message(update, context, GROQ_API_KEY, GROQ_MODEL)
         return
 
     if text in dua_quran:
-        answer = ask_groq(f"Дуа из Корана: {text}. Дай арабский текст, тафсир и практическое применение.")
+        answer = await ask_groq(f"Дуа из Корана: {text}. Дай арабский текст, тафсир и практическое применение.")
         await update.message.reply_text(answer)
         return
 
     if text in dua_hisnul:
-        answer = ask_groq(f"Дуа из Крепость мусульманина: {text}. Дай арабский текст, перевод, объяснение и когда читать.")
+        answer = await ask_groq(f"Дуа из Крепость мусульманина: {text}. Дай арабский текст, перевод, объяснение и когда читать.")
         await update.message.reply_text(answer)
         return
 
@@ -261,13 +269,13 @@ await handle_designer_message(update, context, GROQ_API_KEY, GROQ_MODEL)
                 reply_markup=keyboard
             )
         else:
-            answer = ask_groq(f"Тема: {text}")
+            answer = await ask_groq(f"Тема: {text}")
             await update.message.reply_text(answer)
         return
 
     for main_topic, subs in subtopics.items():
         if text in subs:
-            answer = ask_groq(f"Главная тема: {main_topic}. Подтема: {text}.")
+            answer = await ask_groq(f"Главная тема: {main_topic}. Подтема: {text}.")
             await update.message.reply_text(answer)
             return
 
@@ -288,7 +296,7 @@ await handle_designer_message(update, context, GROQ_API_KEY, GROQ_MODEL)
     if "selected_sura" in context.user_data and text.isdigit():
         sura = context.user_data["selected_sura"]
         ayah = text
-        answer = ask_groq(f"Сура: {sura}. Аят: {ayah}. Дай арабский текст и тафсир.")
+        answer = await ask_groq(f"Сура: {sura}. Аят: {ayah}. Дай арабский текст и тафсир.")
         await update.message.reply_text(answer)
         context.user_data.pop("selected_sura", None)
         return
@@ -296,7 +304,7 @@ await handle_designer_message(update, context, GROQ_API_KEY, GROQ_MODEL)
     if "selected_hadith_book" in context.user_data and text.isdigit():
         book = context.user_data["selected_hadith_book"]
         number = text
-        answer = ask_groq(f"Книга: {book}. Хадис №{number}. Дай арабский текст и объяснение.")
+        answer = await ask_groq(f"Книга: {book}. Хадис №{number}. Дай арабский текст и объяснение.")
         await update.message.reply_text(answer)
         context.user_data.pop("selected_hadith_book", None)
         return
@@ -310,13 +318,17 @@ await handle_designer_message(update, context, GROQ_API_KEY, GROQ_MODEL)
 
     if "question_category" in context.user_data:
         category = context.user_data["question_category"]
-        answer = ask_groq(f"Категория: {category}. Вопрос: {text}.")
+        answer = await ask_groq(f"Категория: {category}. Вопрос: {text}.")
         await update.message.reply_text(answer)
         context.user_data.pop("question_category", None)
         return
 
-    answer = ask_groq(text)
+    answer = await ask_groq(text)
     await update.message.reply_text(answer)
+
+# ========= ОБРАБОТЧИК ОШИБОК =========
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logger.error("Exception while handling an update:", exc_info=context.error)
 
 # ========= ЗАПУСК =========
 def main():
@@ -324,6 +336,7 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_error_handler(error_handler)
 
     logger.info("Bot started...")
     app.run_polling()
