@@ -32,4 +32,3 @@ outputType = "console"
 [userenv]
 
 [userenv.shared]
-GEMINI_API_KEY = "Ab8RN6IltBO76btjqabEpPR6yF2por8gGRe5mg62pJPhnbuVBQ"
