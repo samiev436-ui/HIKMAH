@@ -13,11 +13,14 @@ logging.basicConfig(level=logging.INFO)
 def ask_gemini(prompt):
     try:
         response = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}",
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}",
             json={"contents":[{"parts":[{"text": prompt}]}]}
         )
-        return response.json()["candidates"][0]["content"]["parts"][0]["text"]
-    except Exception:
+        data = response.json()
+        logging.info(f"Gemini response: {data}")
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    except Exception as e:
+        logging.error(f"Gemini error: {e}")
         return "Ошибка при обращении к Gemini."
 
 # 📌 Главное меню
