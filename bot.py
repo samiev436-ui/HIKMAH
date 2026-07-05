@@ -1,11 +1,11 @@
 import logging
+import os
 import requests
 from telegram import ReplyKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
-# 🔑 Вставь свои ключи
-TELEGRAM_TOKEN = "8065909527:AAFxbnUlsg8TEy2Dt4RcUI2zit5jn_0Ffh8"
-GEMINI_API_KEY = "Ab8RN6IltBO76btjqabEpPR6yF2por8gGRe5mg62pJPhnbuVBQ"
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 logging.basicConfig(level=logging.INFO)
 
