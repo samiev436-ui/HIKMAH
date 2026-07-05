@@ -9,6 +9,26 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 logging.basicConfig(level=logging.INFO)
 
+def check_gemini_key():
+    if not GEMINI_API_KEY:
+        logging.error("GEMINI_API_KEY не задан!")
+        return False
+    try:
+        response = requests.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}",
+            json={"contents": [{"parts": [{"text": "test"}]}]},
+            timeout=10
+        )
+        data = response.json()
+        if "error" in data:
+            logging.error(f"Gemini ключ недействителен: {data['error']['message']}")
+            return False
+        logging.info("Gemini API ключ рабочий.")
+        return True
+    except Exception as e:
+        logging.error(f"Ошибка проверки Gemini ключа: {e}")
+        return False
+
 # 🧠 Функция обращения к Gemini API
 def ask_gemini(prompt):
     try:
@@ -76,6 +96,7 @@ def buttons(update, context):
     update.message.reply_text(answer)
 
 def main():
+    check_gemini_key()
     updater = Updater(TELEGRAM_TOKEN, use_context=True)
     dp = updater.dispatcher
 
