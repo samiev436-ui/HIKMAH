@@ -3,6 +3,7 @@ import logging
 import requests
 from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from designer_bot import handle_designer_message
 
 # ========= НАСТРОЙКИ =========
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -22,6 +23,7 @@ main_menu = ReplyKeyboardMarkup(
     ],
     resize_keyboard=True
 )
+context.bot_data["main_menu"] = main_menu
 
 # ========= ИСЛАМСКИЕ ТЕМЫ (50) =========
 islam_topics = [
@@ -211,8 +213,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ========= ОБРАБОТЧИК ТЕКСТА =========
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
+await handle_designer_message(update, context, GROQ_API_KEY, GROQ_MODEL)
 
-    if text == "Исламские темы":
+ if text == "Исламские темы":
         await update.message.reply_text("Выберите тему:", reply_markup=islam_topics_keyboard)
         return
 
