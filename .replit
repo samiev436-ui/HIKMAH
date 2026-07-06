@@ -32,3 +32,9 @@ outputType = "console"
 [userenv]
 
 [userenv.shared]
+
+[userenv.development]
+VPS_SSH_KEY = ""
+
+[userenv.production]
+VPS_SSH_KEY = ""
